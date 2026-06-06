@@ -25,45 +25,6 @@
 /*M!100616 SET @OLD_NOTE_VERBOSITY=@@NOTE_VERBOSITY, NOTE_VERBOSITY=0 */;
 
 --
--- Table structure for table `authme`
---
-
-DROP TABLE IF EXISTS `authme`;
-/*!40101 SET @saved_cs_client     = @@character_set_client */;
-/*!40101 SET character_set_client = utf8mb4 */;
-CREATE TABLE `authme` (
-  `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
-  `username` varchar(64) NOT NULL,
-  `realname` varchar(64) DEFAULT NULL,
-  `password` varchar(255) NOT NULL,
-  `email` varchar(191) DEFAULT NULL,
-  `ip` varchar(64) DEFAULT NULL,
-  `lastlogin` bigint(20) DEFAULT NULL,
-  `regdate` bigint(20) DEFAULT NULL,
-  `regip` varchar(64) DEFAULT NULL,
-  `isLogged` int(11) NOT NULL DEFAULT 0,
-  PRIMARY KEY (`id`)
-) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
-/*!40101 SET character_set_client = @saved_cs_client */;
-
---
--- Dumping data for table `authme`
---
-
-SET @OLD_AUTOCOMMIT=@@AUTOCOMMIT, @@AUTOCOMMIT=0;
-LOCK TABLES `authme` WRITE;
-/*!40000 ALTER TABLE `authme` DISABLE KEYS */;
-INSERT INTO `authme` VALUES
-(1,'admin','admin','$SHA$a6a8053e1622b675$55fca06038e3a8bd3c9a73a72358e69c63379885d537b5c20e250232cdfe746f','admin@ryujinos.net','127.0.0.1',1780760724000,1780760724000,NULL,0),
-(2,'loky1454','loky1454','$SHA$4004b839b62a2266$505b23e9ba606ad285b63335538eb90043ead6957ba59b4b04dcd04b621feb4a','nodernetinfos@gmail.com','127.0.0.1',1780760724000,1780760724000,NULL,0),
-(3,'notch','Notch','$SHA$f1942c2c766da34b$11ff7431cad200bd82f7cc13a8bbd1e178dfb9ec9ae1e82918f0fc5d101587fc','notch@example.com','127.0.0.1',1780760724000,1780760724000,NULL,0),
-(4,'steve','Steve','$SHA$e7e596f66a365a2c$476087fe06da192857cf51aa108f690c49323565b68fb1282e6f3a9289f00c96','steve@example.com','127.0.0.1',1780760724000,1780760724000,NULL,0);
-/*!40000 ALTER TABLE `authme` ENABLE KEYS */;
-UNLOCK TABLES;
-COMMIT;
-SET AUTOCOMMIT=@OLD_AUTOCOMMIT;
-
---
 -- Table structure for table `categories`
 --
 
@@ -391,43 +352,51 @@ COMMIT;
 SET AUTOCOMMIT=@OLD_AUTOCOMMIT;
 
 --
--- Table structure for table `users`
+-- Table structure for table `Accounts`
+-- Unified account table: a player's in-game (AuthMe-style) credentials and
+-- website data (credit, role, profile) share a single row, keyed by username.
 --
 
-DROP TABLE IF EXISTS `users`;
+DROP TABLE IF EXISTS `Accounts`;
 /*!40101 SET @saved_cs_client     = @@character_set_client */;
 /*!40101 SET character_set_client = utf8mb4 */;
-CREATE TABLE `users` (
-  `id` int(10) unsigned NOT NULL AUTO_INCREMENT,
-  `username` varchar(64) NOT NULL,
-  `uuid` varchar(64) DEFAULT NULL,
-  `email` varchar(191) DEFAULT NULL,
+CREATE TABLE `Accounts` (
+  `id` int(11) NOT NULL AUTO_INCREMENT,
+  `uuid` char(36) DEFAULT NULL,
+  `username` varchar(255) NOT NULL,
+  `realname` varchar(255) NOT NULL,
+  `email` varchar(255) DEFAULT NULL,
   `password` varchar(255) DEFAULT NULL,
+  `credit` decimal(8,2) unsigned NOT NULL DEFAULT '0.00',
   `role` varchar(20) NOT NULL DEFAULT 'member',
-  `balance` decimal(12,2) NOT NULL DEFAULT 0.00,
   `avatar` varchar(255) DEFAULT NULL,
   `two_factor` tinyint(1) NOT NULL DEFAULT 0,
-  `last_login_ip` varchar(64) DEFAULT NULL,
+  `isVerified` enum('0','1') NOT NULL DEFAULT '1',
+  `creationIP` varchar(40) NOT NULL DEFAULT '127.0.0.1',
+  `last_login_ip` varchar(40) DEFAULT NULL,
   `last_login_at` datetime DEFAULT NULL,
-  `created_at` datetime NOT NULL,
+  `creationDate` datetime NOT NULL DEFAULT CURRENT_TIMESTAMP(),
   `updated_at` datetime DEFAULT NULL,
-  PRIMARY KEY (`id`)
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `username` (`username`)
 ) ENGINE=InnoDB AUTO_INCREMENT=5 DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 /*!40101 SET character_set_client = @saved_cs_client */;
 
 --
--- Dumping data for table `users`
+-- Dumping data for table `Accounts`
+-- Passwords are AuthMe SHA256 ($SHA$...) so the same credentials work in-game.
+-- Demo logins: admin / admin123, others / player123
 --
 
 SET @OLD_AUTOCOMMIT=@@AUTOCOMMIT, @@AUTOCOMMIT=0;
-LOCK TABLES `users` WRITE;
-/*!40000 ALTER TABLE `users` DISABLE KEYS */;
-INSERT INTO `users` VALUES
-(1,'admin',NULL,'admin@ryujinos.net','$2y$10$e26Lh3gk0t1XYSOPpa5HYO0wJksQIBGnanDpzIdCCsKep.dVyRUm2','admin',8572.00,NULL,0,NULL,NULL,'2026-06-06 19:15:57',NULL),
-(2,'loky1454',NULL,'nodernetinfos@gmail.com','$2y$10$YJ6Bc/7Ei0bR2B/OFMrcweKEVkt/0Y8EaqO/hNEvVW1js.xSUamJS','member',0.00,NULL,0,NULL,NULL,'2026-06-06 19:15:57',NULL),
-(3,'Notch',NULL,NULL,'$2y$10$t2YdNQa4DFBzB10z8d91/OWYjpUfJ9Z54ekRGmxnCEDqGOI8Bb4Bu','member',0.00,NULL,0,NULL,NULL,'2026-06-06 19:15:57',NULL),
-(4,'Steve',NULL,NULL,'$2y$10$GWKcL29pdu8YnEfNppLtJOBYFEpY/eS895GLz.D7gPBSm3vEnE7RK','member',0.00,NULL,0,NULL,NULL,'2026-06-06 19:15:57',NULL);
-/*!40000 ALTER TABLE `users` ENABLE KEYS */;
+LOCK TABLES `Accounts` WRITE;
+/*!40000 ALTER TABLE `Accounts` DISABLE KEYS */;
+INSERT INTO `Accounts` (`id`,`uuid`,`username`,`realname`,`email`,`password`,`credit`,`role`,`avatar`,`two_factor`,`isVerified`,`creationIP`,`last_login_ip`,`last_login_at`,`creationDate`,`updated_at`) VALUES
+(1,NULL,'admin','admin','admin@ryujinos.net','$SHA$a6a8053e1622b675$55fca06038e3a8bd3c9a73a72358e69c63379885d537b5c20e250232cdfe746f',8572.00,'admin',NULL,0,'1','127.0.0.1',NULL,NULL,'2026-06-06 19:15:57',NULL),
+(2,NULL,'loky1454','loky1454','nodernetinfos@gmail.com','$SHA$4004b839b62a2266$505b23e9ba606ad285b63335538eb90043ead6957ba59b4b04dcd04b621feb4a',0.00,'member',NULL,0,'1','127.0.0.1',NULL,NULL,'2026-06-06 19:15:57',NULL),
+(3,NULL,'Notch','Notch','notch@example.com','$SHA$f1942c2c766da34b$11ff7431cad200bd82f7cc13a8bbd1e178dfb9ec9ae1e82918f0fc5d101587fc',0.00,'member',NULL,0,'1','127.0.0.1',NULL,NULL,'2026-06-06 19:15:57',NULL),
+(4,NULL,'Steve','Steve','steve@example.com','$SHA$e7e596f66a365a2c$476087fe06da192857cf51aa108f690c49323565b68fb1282e6f3a9289f00c96',0.00,'member',NULL,0,'1','127.0.0.1',NULL,NULL,'2026-06-06 19:15:57',NULL);
+/*!40000 ALTER TABLE `Accounts` ENABLE KEYS */;
 UNLOCK TABLES;
 COMMIT;
 SET AUTOCOMMIT=@OLD_AUTOCOMMIT;

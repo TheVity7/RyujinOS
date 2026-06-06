@@ -35,7 +35,7 @@ final class CreditTransaction
         return Database::select(
             "SELECT ct.amount, ct.created_at, u.username, u.avatar
              FROM credit_transactions ct
-             JOIN users u ON u.id = ct.user_id
+             JOIN Accounts u ON u.id = ct.user_id
              WHERE ct.type IN ('purchase','admin','bonus') AND ct.amount > 0
              ORDER BY ct.id DESC LIMIT " . max(1, $limit)
         );

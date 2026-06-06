@@ -11,6 +11,7 @@ use App\Models\Post;
 use App\Models\Product;
 use App\Models\Setting;
 use App\Models\User;
+use App\Services\AuthMeService;
 
 /**
  * Seeds the database with demo data plus a default admin account.
@@ -20,60 +21,11 @@ final class Seeder
     public static function run(): void
     {
         self::settings();
-        self::pluginAuthDemo();
         $admin = self::users();
         $categories = self::categories();
         self::products($categories);
         self::posts();
         self::demoActivity($admin);
-    }
-
-    /**
-     * Local-development helper: when AuthMe/Velocity integration is enabled
-     * this creates a demo plugin table and seeds shared credentials so the
-     * "register in-game = website account" flow is testable without a live
-     * Minecraft server. In production the plugin owns this table.
-     */
-    private static function pluginAuthDemo(): void
-    {
-        $integration = (string) config('auth.integration', 'native');
-        if (!in_array($integration, ['authme', 'velocity'], true)) {
-            return;
-        }
-
-        $table = (string) config('auth.table');
-        $sqlite = Database::driver() === 'sqlite';
-        $idType = $sqlite ? 'INTEGER PRIMARY KEY AUTOINCREMENT' : 'INT UNSIGNED AUTO_INCREMENT PRIMARY KEY';
-
-        Database::run("CREATE TABLE IF NOT EXISTS {$table} (
-            id {$idType},
-            username VARCHAR(64) NOT NULL,
-            realname VARCHAR(64) NULL,
-            password VARCHAR(255) NOT NULL,
-            email VARCHAR(191) NULL,
-            ip VARCHAR(64) NULL,
-            lastlogin BIGINT NULL,
-            regdate BIGINT NULL,
-            regip VARCHAR(64) NULL,
-            isLogged INT NOT NULL DEFAULT 0
-        )");
-
-        $accounts = [
-            ['admin', 'admin123', 'admin@ryujinos.net'],
-            ['loky1454', 'player123', 'nodernetinfos@gmail.com'],
-            ['Notch', 'player123', 'notch@example.com'],
-            ['Steve', 'player123', 'steve@example.com'],
-        ];
-        foreach ($accounts as [$name, $password, $email]) {
-            $exists = Database::scalar("SELECT COUNT(*) FROM {$table} WHERE LOWER(username) = LOWER(?)", [$name]);
-            if ((int) $exists === 0) {
-                Database::run(
-                    "INSERT INTO {$table} (username, realname, password, email, ip, lastlogin, regdate)
-                     VALUES (?, ?, ?, ?, ?, ?, ?)",
-                    [strtolower($name), $name, \App\Services\AuthMeService::hash($password), $email, '127.0.0.1', time() * 1000, time() * 1000]
-                );
-            }
-        }
     }
 
     private static function settings(): void
@@ -108,19 +60,26 @@ final class Seeder
         if (!$admin instanceof User) {
             $admin = User::create([
                 'username' => 'admin',
+                'realname' => 'admin',
                 'email'    => 'admin@ryujinos.net',
-                'password' => password_hash('admin123', PASSWORD_BCRYPT),
+                'password' => AuthMeService::hash('admin123'),
                 'role'     => 'admin',
                 'balance'  => 8572.00,
             ]);
         }
 
-        foreach (['loky1454' => 'nodernetinfos@gmail.com', 'Notch' => null, 'Steve' => null] as $name => $email) {
+        $players = [
+            'loky1454' => 'nodernetinfos@gmail.com',
+            'Notch'    => 'notch@example.com',
+            'Steve'    => 'steve@example.com',
+        ];
+        foreach ($players as $name => $email) {
             if (!User::findByUsername($name) instanceof User) {
                 User::create([
                     'username' => $name,
+                    'realname' => $name,
                     'email'    => $email,
-                    'password' => password_hash('player123', PASSWORD_BCRYPT),
+                    'password' => AuthMeService::hash('player123'),
                     'balance'  => 0,
                 ]);
             }

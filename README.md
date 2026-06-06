@@ -10,9 +10,9 @@ ile otomatik teslim edilir.
 
 ## Özellikler
 
-- **Oyun ↔ Site senkronizasyonu** — AuthMe / Velocity Auth eklenti tablosuyla
-  ortak veritabanı. Oyuncu oyunda kayıt olunca sitede de hesabı olur (aynı
-  kullanıcı adı + şifre). Üç mod: `native`, `authme`, `velocity`.
+- **Oyun ↔ Site senkronizasyonu** — oyun (AuthMe tarzı) ve site hesapları tek
+  `Accounts` tablosunda birleşir. Oyuncu oyunda kayıt olunca sitede de hesabı
+  olur (aynı kullanıcı adı + şifre, AuthMe uyumlu hash).
 - **Kredi sistemi** — Shopier ile bakiye yükleme (test modunda sandbox akışı),
   kredi geçmişi, işlem kayıtları.
 - **Mağaza** — kategoriler, ürünler, indirim, stok, öne çıkanlar. Satın alımda
@@ -40,7 +40,7 @@ ile otomatik teslim edilir.
    ```bash
    cp .env.example .env
    ```
-   `.env` içinde veritabanı, `AUTH_INTEGRATION`, `RCON_*` ve `SHOPIER_*`
+   `.env` içinde veritabanı, `AUTHME_HASH`, `RCON_*` ve `SHOPIER_*`
    değerlerini doldurun. `APP_KEY` üretmek için:
    ```bash
    php cli.php key
@@ -61,14 +61,25 @@ ile otomatik teslim edilir.
    `http://localhost:8000` adresini açın. Yönetim paneli: `/yonetim`
    (varsayılan giriş: **admin / admin123**).
 
-### AuthMe / Velocity entegrasyonu
+### Tek tablo (AuthMe ile paylaşımlı) hesap sistemi
 
-`AUTH_INTEGRATION=authme` (veya `velocity`) iken site, eklentinin oyuncu
-tablosunu **kaynak** kabul eder; şifreler AuthMe formatında okunur/yazılır.
-Yerel testte seeder, paylaşılan kimlik bilgileriyle bir demo eklenti tablosu
-oluşturur, böylece "oyunda kayıt = site hesabı" akışı canlı sunucu olmadan
-denenebilir. Üretimde bu tabloyu eklenti yönetir; siteyi aynı veritabanına
+Oyun (AuthMe tarzı) ve site hesapları **tek bir `Accounts` tablosunda** birleşir;
+bir oyuncunun kimlik bilgileri ile site verisi (kredi, rol, profil) aynı satırda
+tutulur. Böylece "oyunda kayıt = site hesabı" (ve tersi) otomatik çalışır.
+
+Şifreler `AUTHME_HASH` ile seçilen AuthMe uyumlu formatta saklanır (varsayılan
+`SHA256`), böylece aynı kullanıcı adı + şifre hem oyunda hem sitede geçerlidir.
+Üretimde oyun eklentisi ile siteyi **aynı veritabanı ve `Accounts` tablosuna**
 bağlamanız yeterlidir.
+
+| Kolon | Açıklama |
+|-------|----------|
+| `id`, `uuid`, `username`, `realname`, `email`, `password` | Hesap kimliği + AuthMe uyumlu şifre |
+| `credit` | Site kredisi (eski `balance`) |
+| `role` | `member` \| `admin` |
+| `avatar`, `two_factor` | Site profili |
+| `isVerified`, `creationIP`, `creationDate` | Hesap durumu/kaydı |
+| `last_login_ip`, `last_login_at`, `updated_at` | Site oturum bilgisi |
 
 ### Shopier
 
@@ -105,7 +116,7 @@ Sunucudan sunucuya bildirim (callback) adresi: `/odeme/callback`.
    - `APP_KEY` (32+ karakter rastgele) — yerelde `php cli.php key` ile üretip
      yapıştırabilirsiniz.
    - `DB_*` → Plesk'te oluşturduğunuz veritabanı bilgileri.
-   - `AUTH_INTEGRATION` + `AUTHME_*` → oyun sunucunuzun AuthMe/Velocity tablosu.
+   - `AUTHME_HASH` → oyun sunucunuzun AuthMe şifre hash formatı (ortak `Accounts` tablosu).
    - `RCON_*` → ürün teslimi için sunucunuzun RCON bilgileri.
    - `SHOPIER_*` → canlı tahsilat için API anahtarları, `SHOPIER_TEST_MODE=false`.
 

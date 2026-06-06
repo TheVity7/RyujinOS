@@ -30,16 +30,9 @@ return [
     ],
 
     'auth' => [
-        'integration' => env('AUTH_INTEGRATION', 'native'),
-        'table'       => env('AUTHME_TABLE', 'authme'),
-        'columns'     => [
-            'name'      => env('AUTHME_COL_NAME', 'username'),
-            'password'  => env('AUTHME_COL_PASSWORD', 'password'),
-            'email'     => env('AUTHME_COL_EMAIL', 'email'),
-            'ip'        => env('AUTHME_COL_IP', 'ip'),
-            'lastlogin' => env('AUTHME_COL_LASTLOGIN', 'lastlogin'),
-            'regdate'   => env('AUTHME_COL_REGDATE', 'regdate'),
-        ],
+        // Hash format used for the shared `password` column in the unified
+        // Accounts table, so the same credential works in-game and on the site.
+        // SHA256 (default AuthMe) | BCRYPT | ARGON2 | SHA512 | PLAINTEXT
         'hash' => strtoupper((string) env('AUTHME_HASH', 'SHA256')),
     ],
 

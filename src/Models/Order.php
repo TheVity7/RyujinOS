@@ -68,7 +68,7 @@ final class Order
         return Database::select(
             "SELECT o.product_name, o.created_at, u.username, u.avatar, c.name AS category
              FROM orders o
-             JOIN users u ON u.id = o.user_id
+             JOIN Accounts u ON u.id = o.user_id
              LEFT JOIN products p ON p.id = o.product_id
              LEFT JOIN categories c ON c.id = p.category_id
              WHERE o.status IN ('completed','delivered')
@@ -89,7 +89,7 @@ final class Order
     public static function all(int $limit = 100): array
     {
         return Database::select(
-            "SELECT o.*, u.username FROM orders o JOIN users u ON u.id = o.user_id ORDER BY o.id DESC LIMIT " . max(1, $limit)
+            "SELECT o.*, u.username FROM orders o JOIN Accounts u ON u.id = o.user_id ORDER BY o.id DESC LIMIT " . max(1, $limit)
         );
     }
 
