@@ -5,26 +5,31 @@ declare(strict_types=1);
 namespace App\Models;
 
 use App\Core\Database;
+use App\Services\AuthMeService;
 
 /**
- * Website user account. When AuthMe/Velocity integration is enabled the
- * credentials live in the plugin table, while this row stores website data
- * (credits, role, profile) keyed by the in-game username.
+ * Unified account. In-game (AuthMe-style) credentials and website data
+ * (credit, role, profile) live in the same `Accounts` row, keyed by the
+ * username, so a player who registers in-game automatically has a website
+ * account and vice-versa.
  */
 final class User
 {
     public int $id = 0;
     public string $username = '';
+    public string $realname = '';
     public ?string $uuid = null;
     public ?string $email = null;
     public ?string $password = null;
     public string $role = 'member';        // member | admin
-    public float $balance = 0.0;           // credits
+    public float $balance = 0.0;           // credit column
     public ?string $avatar = null;
     public bool $two_factor = false;
+    public bool $isVerified = true;
+    public string $creationIP = '127.0.0.1';
     public ?string $last_login_ip = null;
     public ?string $last_login_at = null;
-    public string $created_at = '';
+    public string $created_at = '';        // creationDate column
     public ?string $updated_at = null;
 
     public static function fromRow(array $row): self
@@ -32,51 +37,59 @@ final class User
         $user = new self();
         $user->id = (int) ($row['id'] ?? 0);
         $user->username = (string) ($row['username'] ?? '');
+        $user->realname = (string) ($row['realname'] ?? ($row['username'] ?? ''));
         $user->uuid = $row['uuid'] ?? null;
         $user->email = $row['email'] ?? null;
         $user->password = $row['password'] ?? null;
         $user->role = (string) ($row['role'] ?? 'member');
-        $user->balance = (float) ($row['balance'] ?? 0);
+        $user->balance = (float) ($row['credit'] ?? $row['balance'] ?? 0);
         $user->avatar = $row['avatar'] ?? null;
         $user->two_factor = (bool) ($row['two_factor'] ?? false);
+        $user->isVerified = (string) ($row['isVerified'] ?? '1') !== '0';
+        $user->creationIP = (string) ($row['creationIP'] ?? '127.0.0.1');
         $user->last_login_ip = $row['last_login_ip'] ?? null;
         $user->last_login_at = $row['last_login_at'] ?? null;
-        $user->created_at = (string) ($row['created_at'] ?? '');
+        $user->created_at = (string) ($row['creationDate'] ?? $row['created_at'] ?? '');
         $user->updated_at = $row['updated_at'] ?? null;
         return $user;
     }
 
     public static function find(int $id): ?self
     {
-        $row = Database::selectOne('SELECT * FROM users WHERE id = ?', [$id]);
+        $row = Database::selectOne('SELECT * FROM Accounts WHERE id = ?', [$id]);
         return $row ? self::fromRow($row) : null;
     }
 
     public static function findByUsername(string $username): ?self
     {
-        $row = Database::selectOne('SELECT * FROM users WHERE LOWER(username) = LOWER(?)', [$username]);
+        $row = Database::selectOne('SELECT * FROM Accounts WHERE LOWER(username) = LOWER(?)', [$username]);
         return $row ? self::fromRow($row) : null;
     }
 
     public static function findByEmail(string $email): ?self
     {
-        $row = Database::selectOne('SELECT * FROM users WHERE LOWER(email) = LOWER(?)', [$email]);
+        $row = Database::selectOne('SELECT * FROM Accounts WHERE LOWER(email) = LOWER(?)', [$email]);
         return $row ? self::fromRow($row) : null;
     }
 
     public static function create(array $data): self
     {
+        $username = (string) $data['username'];
+        $ip = $data['creationIP'] ?? $data['last_login_ip'] ?? '127.0.0.1';
         $id = Database::insert(
-            'INSERT INTO users (username, uuid, email, password, role, balance, avatar, last_login_ip, created_at)
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)',
+            'INSERT INTO Accounts (username, realname, uuid, email, password, credit, role, avatar, isVerified, creationIP, last_login_ip, creationDate)
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)',
             [
-                $data['username'],
+                $username,
+                $data['realname'] ?? $username,
                 $data['uuid'] ?? null,
                 $data['email'] ?? null,
                 $data['password'] ?? null,
+                $data['balance'] ?? $data['credit'] ?? 0,
                 $data['role'] ?? 'member',
-                $data['balance'] ?? 0,
                 $data['avatar'] ?? null,
+                isset($data['isVerified']) && !$data['isVerified'] ? '0' : '1',
+                $ip,
                 $data['last_login_ip'] ?? null,
                 date('Y-m-d H:i:s'),
             ]
@@ -87,8 +100,8 @@ final class User
     public function save(): void
     {
         Database::run(
-            'UPDATE users SET email = ?, password = ?, role = ?, balance = ?, avatar = ?,
-             two_factor = ?, last_login_ip = ?, last_login_at = ?, updated_at = ? WHERE id = ?',
+            'UPDATE Accounts SET email = ?, password = ?, role = ?, credit = ?, avatar = ?,
+             two_factor = ?, isVerified = ?, last_login_ip = ?, last_login_at = ?, updated_at = ? WHERE id = ?',
             [
                 $this->email,
                 $this->password,
@@ -96,6 +109,7 @@ final class User
                 $this->balance,
                 $this->avatar,
                 $this->two_factor ? 1 : 0,
+                $this->isVerified ? '1' : '0',
                 $this->last_login_ip,
                 $this->last_login_at,
                 date('Y-m-d H:i:s'),
@@ -127,7 +141,7 @@ final class User
         Database::beginTransaction();
         try {
             $this->balance = round($this->balance + $amount, 2);
-            Database::run('UPDATE users SET balance = ?, updated_at = ? WHERE id = ?', [
+            Database::run('UPDATE Accounts SET credit = ?, updated_at = ? WHERE id = ?', [
                 $this->balance,
                 date('Y-m-d H:i:s'),
                 $this->id,
@@ -142,58 +156,41 @@ final class User
 
     public static function count(): int
     {
-        return (int) Database::scalar('SELECT COUNT(*) FROM users');
+        return (int) Database::scalar('SELECT COUNT(*) FROM Accounts');
     }
 
     /**
-     * Verify a plain password against the stored credential. Reads from the
-     * AuthMe/Velocity plugin table when integration is enabled, otherwise the
-     * native users.password column.
+     * Verify a plain password against the stored credential. Passwords live in
+     * the unified Accounts table in an AuthMe-compatible format so the same
+     * credential works both in-game and on the website.
      */
     public function verifyPassword(string $password): bool
     {
-        $integration = (string) config('auth.integration', 'native');
-        if (in_array($integration, ['authme', 'velocity'], true)) {
-            $table = (string) config('auth.table');
-            $cols = config('auth.columns');
-            $hash = (string) Database::scalar(
-                "SELECT {$cols['password']} FROM {$table} WHERE LOWER({$cols['name']}) = LOWER(?)",
-                [$this->username]
-            );
-            return $hash !== '' && \App\Services\AuthMeService::verify($password, $hash);
-        }
-        return $this->password !== null && password_verify($password, $this->password);
+        return $this->password !== null
+            && $this->password !== ''
+            && AuthMeService::verify($password, $this->password);
     }
 
     /**
-     * Change the password, writing to whichever store backs authentication.
+     * Change the password, storing it in the configured AuthMe hash format.
      */
     public function changePassword(string $password): void
     {
-        $integration = (string) config('auth.integration', 'native');
-        if (in_array($integration, ['authme', 'velocity'], true)) {
-            $table = (string) config('auth.table');
-            $cols = config('auth.columns');
-            Database::run(
-                "UPDATE {$table} SET {$cols['password']} = ? WHERE LOWER({$cols['name']}) = LOWER(?)",
-                [\App\Services\AuthMeService::hash($password), $this->username]
-            );
-            return;
-        }
-        $this->password = password_hash($password, PASSWORD_BCRYPT);
+        $this->password = AuthMeService::hash($password);
         $this->save();
     }
 
     /** @return list<array{id:int,username:string,email:?string,role:string,balance:float,avatar:?string,created_at:string}> */
     public static function all(int $limit = 200, string $search = ''): array
     {
+        $select = 'SELECT *, credit AS balance, creationDate AS created_at FROM Accounts';
         if ($search !== '') {
             return Database::select(
-                'SELECT * FROM users WHERE username LIKE ? OR email LIKE ? ORDER BY id DESC LIMIT ' . max(1, $limit),
+                $select . ' WHERE username LIKE ? OR email LIKE ? ORDER BY id DESC LIMIT ' . max(1, $limit),
                 ['%' . $search . '%', '%' . $search . '%']
             );
         }
-        return Database::select('SELECT * FROM users ORDER BY id DESC LIMIT ' . max(1, $limit));
+        return Database::select($select . ' ORDER BY id DESC LIMIT ' . max(1, $limit));
     }
 
     /** Top credit loaders (by total positive transactions) within a period. */
@@ -207,7 +204,7 @@ final class User
         }
         $sql = "SELECT u.id, u.username, u.avatar, SUM(ct.amount) AS total
                 FROM credit_transactions ct
-                JOIN users u ON u.id = ct.user_id
+                JOIN Accounts u ON u.id = ct.user_id
                 WHERE {$where}
                 GROUP BY u.id, u.username, u.avatar
                 ORDER BY total DESC";

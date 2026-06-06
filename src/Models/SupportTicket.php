@@ -56,14 +56,14 @@ final class SupportTicket
     public static function all(): array
     {
         return Database::select(
-            'SELECT st.*, u.username FROM support_tickets st JOIN users u ON u.id = st.user_id ORDER BY st.id DESC'
+            'SELECT st.*, u.username FROM support_tickets st JOIN Accounts u ON u.id = st.user_id ORDER BY st.id DESC'
         );
     }
 
     public static function replies(int $ticketId): array
     {
         return Database::select(
-            'SELECT sr.*, u.username FROM support_replies sr JOIN users u ON u.id = sr.user_id WHERE ticket_id = ? ORDER BY sr.id ASC',
+            'SELECT sr.*, u.username FROM support_replies sr JOIN Accounts u ON u.id = sr.user_id WHERE ticket_id = ? ORDER BY sr.id ASC',
             [$ticketId]
         );
     }

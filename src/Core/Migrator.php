@@ -16,24 +16,33 @@ final class Migrator
         $pk = $sqlite ? 'INTEGER PRIMARY KEY AUTOINCREMENT' : 'INT UNSIGNED AUTO_INCREMENT PRIMARY KEY';
         $bool = $sqlite ? 'INTEGER NOT NULL DEFAULT 0' : 'TINYINT(1) NOT NULL DEFAULT 0';
         $money = $sqlite ? 'REAL NOT NULL DEFAULT 0' : 'DECIMAL(12,2) NOT NULL DEFAULT 0';
+        $credit = $sqlite ? 'REAL NOT NULL DEFAULT 0' : "DECIMAL(8,2) UNSIGNED NOT NULL DEFAULT '0.00'";
+        $verified = $sqlite ? "TEXT NOT NULL DEFAULT '1'" : "ENUM('0','1') NOT NULL DEFAULT '1'";
         $engine = $sqlite ? '' : ' ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci';
 
         $tables = [];
 
-        $tables['users'] = "CREATE TABLE IF NOT EXISTS users (
+        // Single unified account table: a player's in-game (AuthMe-style) and
+        // website data live in the same row. Modeled on the shared "Accounts"
+        // schema so registering in-game and on the site is one and the same.
+        $tables['Accounts'] = "CREATE TABLE IF NOT EXISTS Accounts (
             id {$pk},
-            username VARCHAR(64) NOT NULL,
-            uuid VARCHAR(64) NULL,
-            email VARCHAR(191) NULL,
+            uuid CHAR(36) NULL,
+            username VARCHAR(255) NOT NULL,
+            realname VARCHAR(255) NOT NULL,
+            email VARCHAR(255) NULL,
             password VARCHAR(255) NULL,
+            credit {$credit},
             role VARCHAR(20) NOT NULL DEFAULT 'member',
-            balance {$money},
             avatar VARCHAR(255) NULL,
             two_factor {$bool},
-            last_login_ip VARCHAR(64) NULL,
+            isVerified {$verified},
+            creationIP VARCHAR(40) NOT NULL DEFAULT '127.0.0.1',
+            last_login_ip VARCHAR(40) NULL,
             last_login_at DATETIME NULL,
-            created_at DATETIME NOT NULL,
-            updated_at DATETIME NULL
+            creationDate DATETIME NOT NULL,
+            updated_at DATETIME NULL,
+            UNIQUE (username)
         ){$engine}";
 
         $tables['categories'] = "CREATE TABLE IF NOT EXISTS categories (
@@ -139,7 +148,7 @@ final class Migrator
 
     public static function dropAll(): void
     {
-        $tables = ['support_replies', 'support_tickets', 'posts', 'payments', 'credit_transactions', 'orders', 'products', 'categories', 'settings', 'users'];
+        $tables = ['support_replies', 'support_tickets', 'posts', 'payments', 'credit_transactions', 'orders', 'products', 'categories', 'settings', 'Accounts', 'users', 'authme'];
         foreach ($tables as $table) {
             Database::run('DROP TABLE IF EXISTS ' . $table);
         }
