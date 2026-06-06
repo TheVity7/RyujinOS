@@ -77,6 +77,47 @@ yapılmaz; ödeme akışı yerel bir sandbox ekranıyla tamamlanır. Canlı kull
 için Shopier mağaza panelindeki API anahtarlarını girin ve test modunu kapatın.
 Sunucudan sunucuya bildirim (callback) adresi: `/odeme/callback`.
 
+## Plesk / paylaşımlı hosting kurulumu
+
+1. **Dosyaları yükleyin.** Tüm proje dosyalarını domain klasörüne çıkarın
+   (örn. `httpdocs/`). FTP/Dosya Yöneticisi ile `.env` ve `.htaccess` dahil
+   **gizli dosyaları da** yüklediğinizden emin olun.
+
+2. **PHP sürümü.** Plesk → *PHP Settings* bölümünden **PHP 8.3+** seçin.
+   Gerekli eklentiler: `pdo_mysql`, `mbstring`, `openssl`, `curl`, `sockets`.
+
+3. **Document Root (önerilen yöntem).** Plesk → *Hosting Settings* →
+   **Document Root** değerini `public` klasörüne ayarlayın
+   (örn. `httpdocs/public`). Böylece `.env`, `src/`, `database.sql` gibi
+   dosyalar web'den erişilemez olur. `public/.htaccess` temiz URL
+   yönlendirmesini yapar.
+   - *Document Root'u değiştiremiyorsanız:* dosyaları olduğu gibi bırakın;
+     kökteki `.htaccess` istekleri otomatik olarak `public/` içine yönlendirir
+     ve hassas dosyaları korur (yine de Document Root'u `public` yapmak en
+     güvenli yöntemdir).
+
+4. **Veritabanı.** Plesk → *Databases* → yeni bir MySQL veritabanı ve kullanıcı
+   oluşturun. phpMyAdmin'i açın, veritabanını seçin ve **`database.sql`**
+   dosyasını *Import* edin (şema + demo veri + `admin / admin123` gelir).
+
+5. **`.env` ayarları.** `.env.example`'ı `.env` olarak kopyalayıp düzenleyin:
+   - `APP_ENV=production`, `APP_DEBUG=false`, `APP_URL=https://alanadiniz.com`
+   - `APP_KEY` (32+ karakter rastgele) — yerelde `php cli.php key` ile üretip
+     yapıştırabilirsiniz.
+   - `DB_*` → Plesk'te oluşturduğunuz veritabanı bilgileri.
+   - `AUTH_INTEGRATION` + `AUTHME_*` → oyun sunucunuzun AuthMe/Velocity tablosu.
+   - `RCON_*` → ürün teslimi için sunucunuzun RCON bilgileri.
+   - `SHOPIER_*` → canlı tahsilat için API anahtarları, `SHOPIER_TEST_MODE=false`.
+
+6. **İzinler.** `storage/` klasörünün **yazılabilir** olduğundan emin olun
+   (Plesk Dosya Yöneticisi → izinler ya da `chmod -R 775 storage`).
+
+7. **Test.** `https://alanadiniz.com` açın; yönetim paneli `/yonetim`
+   (**admin / admin123** — giriş yaptıktan sonra şifreyi değiştirin).
+
+> **Güvenlik:** Canlıya geçince `admin` şifresini değiştirin, `APP_DEBUG=false`
+> bırakın ve mümkünse SSL (Let's Encrypt) etkinleştirin.
+
 ## CLI komutları
 
 | Komut | Açıklama |

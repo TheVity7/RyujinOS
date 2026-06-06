@@ -1,0 +1,24 @@
+# RyujinOS - YEDEK yonlendirme (opsiyonel)
+# ---------------------------------------------------------------
+# TERCIH EDILEN YONTEM: Plesk'te domain'in "Document Root" degerini
+# ".../httpdocs/public" olarak ayarlayin. Bu durumda bu dosyaya
+# gerek YOKTUR.
+#
+# Eger Document Root'u proje koku (tum dosyalarin oldugu klasor)
+# olarak biraktiysaniz, bu dosya tum istekleri public/ icine
+# yonlendirir ve hassas dosyalari korur.
+# ---------------------------------------------------------------
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # Hassas dosya/dizinlere dogrudan erisimi engelle
+    RewriteRule ^(\.env|\.env\..*|composer\.(json|lock)|database\.sql|README\.md)$ - [F,L]
+    RewriteRule ^(src|config|storage|views|database)(/.*)?$ - [F,L]
+
+    # Zaten public/ altindaysak tekrar yonlendirme
+    RewriteCond %{REQUEST_URI} !^/public/
+    RewriteRule ^(.*)$ public/$1 [L]
+</IfModule>
+
+Options -Indexes

@@ -1,0 +1,25 @@
+# RyujinOS - front controller (Apache / Plesk)
+# Tum istekleri public/index.php uzerinden yonlendirir.
+
+<IfModule mod_rewrite.c>
+    RewriteEngine On
+
+    # Eger proje bir alt klasorde calisiyorsa burayi acin (or: /ryujinos):
+    # RewriteBase /
+
+    # Gercekten var olan dosya/dizinleri oldugu gibi sun (assets vb.)
+    RewriteCond %{REQUEST_FILENAME} -f [OR]
+    RewriteCond %{REQUEST_FILENAME} -d
+    RewriteRule ^ - [L]
+
+    # Diger her istegi on kontrolcuye gonder
+    RewriteRule ^ index.php [L]
+</IfModule>
+
+# Dizin listelemesini kapat
+Options -Indexes
+
+# Gizli dosyalara (.env, .git vb.) erisimi engelle
+<FilesMatch "^\.">
+    Require all denied
+</FilesMatch>
